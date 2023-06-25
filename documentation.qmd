@@ -1,0 +1,338 @@
+---
+toc: true
+---
+
+# **Depression and its Effect on FUNAAB student Academic Performance**
+
+## **Introduction**
+
+Depression prevalence varies among undergraduate students of different countries and cultures and is influenced by socio-demographics, interpersonal, intrapersonal and environmental factors. This study aim to understand the state of depression and its effect on FUNAAB student's academic performance.
+
+### **Project Goals**
+
+The aim of this work is to explore the level of depression among undergraduates and its effect on their academic performance and also provide a simple guide on how to develop and use R shiny and Quarto application. Specifically, we aim to investigate:
+
+-   The amount and causes of depression
+
+-   The most significant factor using E.F.A and its effect on academic performance
+
+-   Check the effect of depression, sex and gender on academic performance with ordinal Logistic regression
+
+-   Build an interactive website using Quarto and R shiny to educate the university community and the world.
+
+## **Population of Study**
+
+### [Federal University of Agriculture Abeokuta (FUNAAB)](https://funaab.edu.ng/)
+
+![](images/funaab1.jpg)
+
+One of the three specialized Universities of Agriculture in Nigeria. It was established on January 1, 1988 with the triple mandate of teaching, research and extension (knowledge and technology transfer). Its covers a total land Area of about 10,000 hectares located in Odeda Local Government Abeokuta, Capital of Ogun State, Nigeria.
+
+![](images/funaab2.jpg){fig-align="center"}
+
+## **Data**
+
+A [depression assssment questionaire](https://forms.gle/NPtbyuxAaHZVzDMi7) was designed with Google forms and was distributed via social media to different college students, student leaders and unions, a total of 246 response was received, the data was stratified by gender and sample size of 100 was randomly selected. The information contained in the data includes socio demographic information, cgp, cgpa, sex, stress score, stress level e.t.c.
+
+### **Data Preparation (cleaning)**
+
+We begin by loading the raw data into R and performing some pre processing steps to prepare the data for analysis. First, we rename columns in the data set using the **`rename()`** function. Then, we reverse code likert items, convert columns to appropriate data types and other necessary data engineering techniques was applied before writing the clean data to file in a c.s.v. format. Click this [link](www.github.com) to access the `data cleaning` R script.
+
+## **Analysis**
+
+### **Socio Demographic Statistics**
+
+Here we load the required packages by creating custom function using `lapply` for loading multiple names of packages created with `c()`
+
+```{r}
+#| echo: false
+#| output: false
+#| warning: false
+#| eval: true
+#| code-fold: true
+#| tidy: true
+#| fig-show: animate
+#| 
+# Load the necessary packages
+my_packages <-c("tidyverse","likert","ggthemes","psych","skimr","gt",
+                "GPArotation","ordinal","MASS","rcompanion","brant","DescTools")
+lapply(my_packages, require, character.only = TRUE)
+survey <- read.csv("dataset/cleandf.csv", stringsAsFactors = TRUE)
+
+```
+
+### **Data Summary**
+
+```{r}
+df <- survey[,c(2:11,73,74)]
+df |>
+  skim()
+```
+
+### **Distribution of response**
+
+We proceed by exploring the distribution of response, counting and visualizing the number of response from each college and department of study.
+
+```{r}
+# Distribution of response by college
+coll <-count(df,college)
+plot1 <- ggplot(coll,aes(reorder(college, -n), y = n)) +
+  geom_bar( stat = "identity", fill = c(rep("grey",7),"#0047AB","grey","black")) +
+  geom_text(aes(label = n), vjust = -0.5, color = "black" , size = 5) +
+  labs(
+       subtitle ="",
+       x = "College", y = "number of responses")
+  ptheme <-theme(
+    panel.background = element_blank(),
+    plot.title = element_text(hjust = 0.5, size = 20),
+    plot.subtitle = element_text(hjust = 0.5, size = 16),
+    axis.title.x = element_text(size = 14),
+    axis.title.y = element_text(size = 14)
+  )
+# count the category of each department
+department <- count(df,department)
+plot2 <-ggplot(department,aes(reorder(department, n), y = n)) +
+  geom_col(fill = c(rep("grey",9),"#0047AB",rep("grey",22),"#99020f","#0047AB","grey")) +
+geom_text(aes(label = n), hjust = -0.5, color = "black", size = 3) +
+  labs(title = "",
+       subtitle = " Statistics department had 14% response",
+       x = "deprtment", y = "number of responses")
+# display the plot
+plot1+ptheme
+plot2+ptheme +coord_flip()
+```
+
+### Student level of depression
+
+```{r}
+  # Measuring the level of student depression
+  lvl <-count(df,stress_level)
+  plot2 <-ggplot(lvl,aes(x = stress_level, y = n)) +
+    geom_bar( stat = "identity", fill = c(rep("#666666",2),"#666666",rep("#99020f",2))) +
+    geom_text(aes(label = n), hjust = -0.5, color = "#99020f" , size = 5) +
+    labs(
+      subtitle ="",
+      x = "Depression Level", y = "number of students") +
+    theme(
+      panel.background = element_blank(),
+      plot.title = element_text(hjust = 0.5, size = 20),
+      plot.subtitle = element_text(hjust = 0.5, size = 16),
+      axis.title.x = element_text(size = 14),
+      axis.title.y = element_text(size = 14)
+    ) + coord_flip()
+```
+
+|            |                 |          |              |             |           |
+|------------|-----------------|----------|--------------|-------------|-----------|
+|            | **Very little** | **Mild** | **Moderate** | **Serious** | **Major** |
+| **Female** | 30              | 14       | 13           | 16          | **31**    |
+| **Male**   | 41              | 29       | 19           | 18          | **28**    |
+
+### **Exploratory Factor Analysis**
+
+Exploratory factor analysis (EFA) was used to determine the common variance among the measured variables that can be attributed to a latent construct or factor. This helps to describe the data and identify underlying factors, this is the first step used to explore and reduce the number of variables into three group of factors namely **interpersonal** factor, **interpersonal** factor and **environmenta**l factor. ![E.F.A](images/EFA.jpg)
+
+### **Ordinal Logistic Regression**
+
+Ordered logistic regression model was used to summaries the relationship between students G.P.A and **age**, **sex,** **interpersonal**, **interpersonal** and **environmenta**l stress factor. We then print the summary of the model to see the effect of each factor on academic performance.
+
+```{r}
+#| echo: false
+#| output: false
+#| warning: false
+#| eval: false
+#df <- df[,-c(1,2)]
+head(df)
+# OLR using ordinal package
+#### model null
+
+
+#Compute confusion table and misclassification error
+predictOLR <- predict(model1, df)
+ctab <- table(predictOLR, fit)
+ctab
+mean(as.character(df$C.G.P) != as.character(predictOLR))
+(CCR <- sum(diag(ctab)) / sum(ctab)) # Calculate the classification rate
+
+```
+
+```{r}
+#| output: false
+#| warning: false
+#| echo: false
+#summary(model1)
+#exp(coef(model1))
+
+# test of goodness
+#chisq.test(df$C.G.P,unlist(predict(model1)))
+```
+
+#### **Model summary**
+
+The relationship between gender, stress level, and academic performance was analyzed using ordinal logistic regression. The results showed that there was a negative relationship between stress level (particularly "stressMild") and academic performance, and a weak negative relationship between being male and academic performance but not statistically significant.
+
+The table below provides coefficient estimates and significance levels for each predictor variable, as well as threshold coefficients for the cut-off points between each level of academic performance.
+
+For stress levels:
+
+-   Mild stress is associated with approximately 0.157 times the odds of the reference category.
+
+-   Moderate and very little stress levels do not show significant evidence of a difference in odds compared to the reference category.
+
+-   Serious stress is associated with approximately 1.051 times the odds of the reference category, but it is not statistically significant.
+
+For gender:
+
+-   Being male is associated with approximately 0.797 times the odds of the reference category, but it is not statistically significant.
+
+    **Threshold Coefficients:**
+
+    -   The threshold coefficients represent the differences in log-odds at the cut-off points between different levels of the ordinal response variable (C.G.P).
+
+    -   First class\|Second class: There is a significant difference in log-odds between the first and second class thresholds.
+
+    -   Second class\|Second class lower: There is no strong evidence of a difference in log-odds between the second class and second class lower thresholds, as the estimate is not statistically significant.
+
+    -   Second class lower\|Third class: There is a significant difference in log-odds between the second class lower and third class thresholds.
+
+Chi-squared
+
+-   p-value: The p-value associated with the chi-squared test is extremely small (\< 2.2e-16), indicating strong evidence against the null hypothesis of no association.
+
+-   the chi-squared test suggests a significant association between the observed and predicted values of the response variable. The small p-value indicates that the observed values differ significantly from the values predicted by the model. This finding suggests that the model provides a statistically significant fit to the data
+
+Overall, the coefficient estimates provide insights into the relationships between the predictor variables (stress and gender) and the log-odds of the ordinal response variable (C.G.P). However, it's important to consider statistical significance when interpreting the coefficients. In this case, the p-value is 0.2235, suggesting that the difference is not statistically significant at a conventional significance level (e.g., 0.05).
+
+## **Conclusion**
+
+This finding supports the notion that the model captures important patterns and dependencies between the predictor variables and the response variable. The small p-value (\< 2.2e-16) indicates strong evidence against the null hypothesis of no association. Therefore, we can reject the null hypothesis and conclude that there is a significant relationship between the observed and predicted values of the response variable. The odds ratios provide insights into the relationships between the predictor variables and the odds of the response variable. Here are the key findings:
+
+1.  Stress Levels:
+
+    -   Individuals with a mild stress level have lower odds of the response variable compared to the reference category.
+
+    -   Moderate and very little stress levels do not show significant evidence of a difference in odds.
+
+    -   Individuals with a serious stress level have slightly higher odds of the response variable, although not statistically significant.
+
+2.  Gender:
+
+    -   Being male is associated with slightly lower odds of the response variable, but it is not statistically significant.
+
+3.  Thresholds:
+
+    -   The odds of transitioning from the first class to the second class are very low.
+
+    -   The odds of transitioning from the second class to the second class lower are relatively high.
+
+    -   The odds of transitioning from the second class lower to the third class are significantly higher.
+
+Overall, these findings suggest that stress levels and gender may have some influence on the odds of the response variable. However, it is important to consider statistical significance and the wide range of confidence intervals associated with these odds ratios. However, it is essential to consider other factors and conduct further analysis to fully understand the nature and strength of this association.
+
+## **Interactive website with Shiny and Quarto**
+
+1.  Install Quarto:
+
+    -   Open RStudio and install the **`quarto`** package by running the command **`install.packages("quarto")`** in the RStudio console.
+
+2.  Create a new Quarto project:
+
+    -   In RStudio, go to File -\> New Project -\> New Directory.
+
+    -   Choose "Quarto Website" as the project template.
+
+    -   Enter the project name and select the directory where you want to create your website.
+
+    -   Click "Create Project" to create the project with the necessary files and folder structure.
+
+    -   open the \_quarto.`yml` file and add the code below to define website navigation.
+
+3.  Customize your website:
+
+    -   In the RStudio file browser, navigate to the project directory.
+
+    -   Open the "index.md" file to edit the homepage content using Markdown syntax.
+
+    -   You can add additional Markdown files or directories to organize your content and create additional pages.
+
+4.  Configure the website settings:
+
+    -   Open the "\_quarto.yml" file in the RStudio editor.
+
+    -   Customize the settings such as title, description, theme, navigation menu, etc. according to your preferences.
+
+    -   Refer to the Quarto documentation ([**https://quarto.org/docs/reference/quarto-yml.html**](https://quarto.org/docs/reference/quarto-yml.html)) for more information on available configuration options.
+
+5.  Preview your website:
+
+    -   In the RStudio console, run the command **`quarto::quarto_serve()`** to start a local development server.
+
+    -   RStudio will open a web browser window showing a live preview of your website.
+
+    -   As you make changes to your content or configuration, the preview will automatically update.
+
+6.  Build your website:
+
+    -   Once you're satisfied with your website and ready to publish it, you need to build it.
+
+    -   In the RStudio console, run the command **`quarto::quarto_build()`** to generate a static HTML version of your website.
+
+    -   The built website will be located in the "\_site" directory within your project folder.
+
+7.  Deploy your website to quarto pub:
+
+    1.  Create a Quarto Pub account:
+
+        -   Visit the Quarto Pub website ([**https://quarto.pub/**](https://quarto.pub/)) and sign up for a free account if you don't already have one.
+
+    2.  Build your Quarto website:
+
+        -   Follow the steps outlined in the previous guides to create and build your Quarto website.
+
+    3.  Deploy your Quarto website to Quarto Pub:
+
+        ```{r }
+        #| echo: false
+        #| output: false
+        #| warning: false
+        #| eval: false
+        # Load the quarto package
+        library(quarto)
+
+        # Set the deployment configuration
+        config <- list(
+          deployment = list(
+            type = "quarto.pub"
+          )
+        )
+
+        # Deploy the Quarto website
+        quarto_deploy(config = config)
+
+        ```
+
+        -   When you run the code, it will prompt you to enter your Quarto Pub credentials (username and password) to authenticate the deployment. Once the deployment is complete, your Quarto website will be published and available at a URL provided by Quarto Pub.
+
+        -   Remember to customize the **`config`** object to include any additional deployment settings you might need, such as specifying a custom domain or setting up metadata. Refer to the Quarto documentation ([**https://quarto.org/docs/reference/quarto-yml.html#deployment-configuration**](https://quarto.org/docs/reference/quarto-yml.html#deployment-configuration)) for more information on available deployment options and configuration settings.
+
+        -   You can also reach out to me if you need further assistance, I would glady help.
+
+## **Future Work**
+
+Possible future work for this project includes:
+
+-   Investigating the effects of other mental health disorders on academic performance
+
+-   Exploring the impact of academic performance on mental health
+
+-   Conducting a longitudinal study to track changes in depression symptoms and academic performance over time
+
+## **Sidenote**
+
+To find all the R codes and datasets, visit [my GitHub repository](https://github.com/ClaudiaCartaya/Bike-sharing). Additionally, in [my ShinnyApp](https://claudiacartaya.shinyapps.io/bike_sharing/?_ga=2.213120020.1031504369.1614209302-493917967.1614209302) can be found the R shiny application.
+
+### **References**
+
+-   [**Student Performance and Depression dataset**](https://example.com/student_performance_depression.csv)
+
+-   [**R Core Team (2021). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria.**](https://www.r-project.org/)
